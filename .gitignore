@@ -1,0 +1,20 @@
+# 操作系统文件 | OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器 | Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 临时与导出产物 | Temp & export artifacts
+*.tmp
+*.log
+node_modules/
+dist/
+
+# 本地录制 / 截图缓存 | Local recording / screenshot cache
+*.webm
+!screenshots/*.png
