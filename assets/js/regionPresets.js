@@ -1,3 +1,4 @@
+// 地区预设模块
 const regionTemplates = {
   "China (Mainland)": [
     "下一站：XX站",
@@ -18,7 +19,6 @@ const regionTemplates = {
     "Please give up your seat"
   ]
 };
-
 let currentRegion = localStorage.getItem("ledSimRegion") || "China (Mainland)";
 
 function setRegion(regionName) {
@@ -26,7 +26,6 @@ function setRegion(regionName) {
   localStorage.setItem("ledSimRegion", regionName);
   renderTemplateList(regionTemplates[regionName]);
 }
-
 function renderTemplateList(list) {
   const container = document.getElementById("templateList");
   if (!container) return;
@@ -36,13 +35,23 @@ function renderTemplateList(list) {
     item.className = "template-item";
     item.innerText = text;
     item.onclick = () => {
-      const input = document.getElementById("ledInput");
-      if(input) input.value = text;
+      document.getElementById("textInput").value = text;
+      AppState.text = text;
+      AppState.scrollOffset = -AppState.GRID_COLS;
+      Renderer.refresh();
     };
     container.appendChild(item);
   });
 }
-
-window.addEventListener("load", () => {
-  setRegion(currentRegion);
-});
+// 弹窗绑定
+const modal = document.getElementById("settingModal");
+const openBtn = document.getElementById("openSettingBtn");
+const closeBtn = document.getElementById("closeSettingBtn");
+const select = document.getElementById("regionSelect");
+if(openBtn && modal) openBtn.onclick = () => modal.classList.add("open");
+if(closeBtn && modal) closeBtn.onclick = () => modal.classList.remove("open");
+if(select){
+  select.value = currentRegion;
+  select.onchange = e => setRegion(e.target.value);
+}
+setRegion(currentRegion);
