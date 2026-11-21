@@ -26,6 +26,7 @@ function setRegion(regionName) {
   localStorage.setItem("ledSimRegion", regionName);
   renderTemplateList(regionTemplates[regionName]);
 }
+
 function renderTemplateList(list) {
   const container = document.getElementById("templateList");
   if (!container) return;
@@ -43,15 +44,24 @@ function renderTemplateList(list) {
     container.appendChild(item);
   });
 }
-// 弹窗绑定
-const modal = document.getElementById("settingModal");
-const openBtn = document.getElementById("openSettingBtn");
-const closeBtn = document.getElementById("closeSettingBtn");
-const select = document.getElementById("regionSelect");
-if(openBtn && modal) openBtn.onclick = () => modal.classList.add("open");
-if(closeBtn && modal) closeBtn.onclick = () => modal.classList.remove("open");
-if(select){
-  select.value = currentRegion;
-  select.onchange = e => setRegion(e.target.value);
-}
-setRegion(currentRegion);
+
+// ✅ 关键：DOM全部加载完成之后再获取元素、绑定事件
+document.addEventListener('DOMContentLoaded', function () {
+  const modal = document.getElementById("settingModal");
+  const openBtn = document.getElementById("openSettingBtn");
+  const closeBtn = document.getElementById("closeSettingBtn");
+  const select = document.getElementById("regionSelect");
+
+  if(openBtn && modal){
+    openBtn.addEventListener('click', () => modal.classList.add("open"));
+  }
+  if(closeBtn && modal){
+    closeBtn.addEventListener('click', () => modal.classList.remove("open"));
+  }
+  if(select){
+    select.value = currentRegion;
+    select.addEventListener('change', e => setRegion(e.target.value));
+  }
+  // 页面加载渲染模板
+  setRegion(currentRegion);
+});
