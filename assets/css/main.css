@@ -1,0 +1,29 @@
+.setting-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.setting-modal.open {
+  display: flex;
+}
+.setting-box {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 420px;
+  box-sizing: border-box;
+}
+.template-item {
+  padding: 6px 8px;
+  cursor: pointer;
+  margin:4px 0;
+  background:#f4f4f4;
+  border-radius:4px;
+}
+.template-item:hover {
+  background:#e8e8e8;
+}
