@@ -1,11 +1,27 @@
 # 更新日志 | Changelog
 
+## v1.0.2-beta
+
+### 改动 | Changes
+
+- 修复 1280 × 160 标准屏字形采样中单像素笔画间断问题，并改善 HZK16 字模对齐与笔画完整性。
+  Fixed single-pixel stroke gaps during 1280 × 160 standard-panel glyph sampling and improved HZK16 glyph alignment and stroke completeness.
+
+- 新增实时字模边界预览，显示实际字模范围及安全区域。
+  Added a live glyph-bounds preview showing the sampled glyph bounds and safe area.
+
+- 新增 0–20% 安全边距设置，调整点阵文字尺寸，减少贴边裁切风险。
+  Added a 0–20% safe-margin setting that scales the rasterized text to reduce edge clipping.
+
+- 保留地区语言切换、地区设置及项目多文件结构。
+  Preserved region/language switching, region settings, and the multi-file project structure.
+
 ## beta 1.0.1
 
 ### 改动 | Changes
 
 - 更新地区选项显示名称为 China (Mainland) 和 China (Hong Kong, Macao, Taiwan)，并保留 UK、USA；对应的简体中文、繁体中文和英文语言映射不变。
-  Updated the region labels to China (Mainland) and China (Hong Kong, Macao, Taiwan), while keeping UK and USA unchanged; the Simplified Chinese, Traditional Chinese, and English locale mappings remain unchanged.
+  Updated the region labels to China (Mainland) and China (Hong Kong, Macao, Taiwan), while keeping UK and USA unchanged; locale mappings remain Simplified Chinese, Traditional Chinese, and English.
 
 - 修复地区切换的实时 DOM 文本更新，地区变更后立即生效，无需刷新页面。
   Fixed live DOM text updates when switching regions; locale changes now apply immediately without a page refresh.
@@ -42,7 +58,7 @@
   Status bar now distinguishes scroll / static mode
 
 - 修复标准屏文字被压扁、离屏采样比例不一致
-  Fixed distorted (squashed) glyphs on the standard panel; offscreen sampling now keeps a square aspect ratio
+  Fixed distorted glyphs on the standard panel; offscreen sampling keeps the correct aspect ratio
 
 - 支持两种点阵规格，图片导出，视频录制，自定义字体
-  Two matrix presets, PNG export, video recording, custom font import supported
+  Two matrix presets, PNG export, video recording, and custom font import supported
