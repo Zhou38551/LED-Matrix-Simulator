@@ -1,5 +1,21 @@
 # 更新日志 | Changelog
 
+## beta 1.0.1
+
+### 改动 | Changes
+
+- 新增地区驱动的简体中文、繁体中文和英文界面切换，选择后即时生效并保存设置，页面加载时自动恢复。
+  Added region-based Simplified Chinese, Traditional Chinese, and English UI switching. Changes apply immediately, are saved, and are restored on page load.
+
+- 地区选项保留 China（大陆）、China（港澳台）、UK 和 USA。
+  Retained the region options China (Mainland), China (Hong Kong, Macau & Taiwan), UK, and USA.
+
+- 更新页面版本号至 beta 1.0.1。
+  Updated the page version to beta 1.0.1.
+
+- 保持多文件结构，未修改 main.js 的点阵渲染逻辑。
+  Kept the multi-file structure and left the matrix rendering logic in main.js unchanged.
+
 ## v1.0.0-beta
 
 ### 改动 | Changes
