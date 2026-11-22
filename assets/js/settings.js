@@ -1,15 +1,13 @@
 (() => {
     const STORAGE_KEY = 'ledMatrixRegion';
-    const HANDLER_KEY = '__ledMatrixSettingsHandlers';
-    const OBSERVER_KEY = '__ledMatrixSettingsObserver';
+    const CONTROLLER_KEY = '__ledMatrixLocaleController';
     const regionLanguages = Object.freeze({
         'china-mainland': 'zh-CN',
         'china-hmt': 'zh-TW',
         uk: 'en',
         usa: 'en',
     });
-
-    const messages = {
+    const translations = {
         'zh-CN': {
             title: 'LED 点阵 · 多比例', subtitle: '长文本自适应 · 物理级边界居中 · 完美循环', settings: '⚙ 设置', total: '总计:', pixels: '像素', scroll: '◀ 自动滚动中', static: '⏸ 静态显示',
             panel: '📏 屏幕比例', standard: '1280 × 160 标准屏', wide: '384 × 16 超宽屏 (HZK16)', fontText: '🔤 字体与文字', upload: '导入自定义字体 (.ttf / .otf / .woff)', loaded: '已加载', placeholder: '输入文字...', presetHello: '你好 世界', presetNext: '下一站：科技园', presetLike: '点赞👍',
@@ -42,127 +40,136 @@
         const regionSelect = document.getElementById('regionSelect');
         if (!modal || !openButton || !closeButton || !cancelButton || !saveButton || !regionSelect) return;
 
-        // If initialization is ever invoked again, remove the old handlers/observer first.
-        const previous = window[HANDLER_KEY];
-        if (previous) previous.forEach(([element, type, handler]) => element.removeEventListener(type, handler));
-        if (window[OBSERVER_KEY]) window[OBSERVER_KEY].disconnect();
-        const handlers = [];
-        const listen = (element, type, handler) => {
-            element.addEventListener(type, handler);
-            handlers.push([element, type, handler]);
-        };
-
+        // Initialization is idempotent: release a prior controller before adding listeners.
+        const previous = window[CONTROLLER_KEY];
+        if (previous) previous.destroy();
+        const controller = new AbortController();
         let currentLanguage = 'zh-CN';
-        const text = (selector, value) => {
+        let translatingDynamicText = false;
+
+        const setText = (selector, value) => {
             const element = document.querySelector(selector);
             if (element && element.textContent !== value) element.textContent = value;
         };
-        const leadingLabel = (selector, value) => {
+        const setLabelPrefix = (selector, value) => {
             const element = document.querySelector(selector);
             if (!element) return;
-            const firstText = Array.from(element.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
-            if (firstText) firstText.nodeValue = `${value} `;
-            else element.insertBefore(document.createTextNode(`${value} `), element.firstChild);
+            const node = Array.from(element.childNodes).find(child => child.nodeType === Node.TEXT_NODE);
+            if (node) {
+                const next = `${value} `;
+                if (node.nodeValue !== next) node.nodeValue = next;
+            }
         };
-
-        const getDynamicToast = (source, t) => {
-            const translations = new Map([
+        const translateToast = (source, t) => {
+            const exact = new Map([
                 ['📸 图片已保存', t.toastImage], ['🔄 重新开始播放', t.toastReplay],
                 ['字体导入成功！', t.toastFontOk], ['字体导入失败，请检查格式', t.toastFontFail],
                 ['录制结束，视频下载中...', t.toastRecordEnd],
                 ['您的浏览器不支持视频录制，请使用 Chrome 或 Edge', t.toastUnsupported],
                 ['开始录制，滚动完一次将自动保存...', t.toastRecordStart],
             ]);
-            if (translations.has(source)) return translations.get(source);
+            if (exact.has(source)) return exact.get(source);
             if (source.startsWith('已切换至 ')) return `${t.toastSwitched} ${source.slice('已切换至 '.length)}`;
             if (source.startsWith('无法创建视频录制器:')) return `${t.toastRecordFail} ${source.slice('无法创建视频录制器:'.length).trim()}`;
             return source;
         };
-
-        const translateDynamicElements = () => {
-            const t = messages[currentLanguage];
+        const updateDynamicText = () => {
+            if (translatingDynamicText) return;
+            translatingDynamicText = true;
+            const t = translations[currentLanguage];
             const status = document.getElementById('scrollStatus');
             if (status) {
-                const nextStatus = status.textContent.includes('⏸') ? t.static : t.scroll;
-                if (status.textContent !== nextStatus) status.textContent = nextStatus;
+                const next = status.textContent.includes('⏸') ? t.static : t.scroll;
+                if (status.textContent !== next) status.textContent = next;
             }
             const record = document.getElementById('btnRecord');
             if (record) {
-                const nextRecord = record.classList.contains('recording') ? t.stopRecord : t.record;
-                if (record.textContent !== nextRecord) record.textContent = nextRecord;
+                const next = record.classList.contains('recording') ? t.stopRecord : t.record;
+                if (record.textContent !== next) record.textContent = next;
             }
             const toast = document.getElementById('toast');
             if (toast) {
-                const translated = getDynamicToast(toast.textContent, t);
-                if (toast.textContent !== translated) toast.textContent = translated;
+                const next = translateToast(toast.textContent, t);
+                if (toast.textContent !== next) toast.textContent = next;
             }
+            translatingDynamicText = false;
         };
-
         const applyLanguage = language => {
-            currentLanguage = messages[language] ? language : 'zh-CN';
-            const t = messages[currentLanguage];
+            currentLanguage = translations[language] ? language : 'zh-CN';
+            const t = translations[currentLanguage];
             document.documentElement.lang = currentLanguage;
             document.title = currentLanguage === 'en' ? 'LED Matrix Simulator' : currentLanguage === 'zh-TW' ? 'LED 點陣 · 開源模組化版' : 'LED点阵 · 开源模块化版';
-            text('.header h1', t.title);
-            text('.header .subtitle', t.subtitle);
-            text('#btnSettings', t.settings);
-            text('#totalLabel', t.total);
-            text('#pixelsLabel', t.pixels);
-
-            const headings = [t.panel, t.fontText, t.display, t.style, t.color, t.export];
-            document.querySelectorAll('.control-section .section-title').forEach((element, index) => {
-                if (headings[index] && element.textContent !== headings[index]) element.textContent = headings[index];
+            setText('.header h1', t.title);
+            setText('.header .subtitle', t.subtitle);
+            setText('#btnSettings', t.settings);
+            setText('#totalLabel', t.total);
+            setText('#pixelsLabel', t.pixels);
+            const headingTexts = [t.panel, t.fontText, t.display, t.style, t.color, t.export];
+            document.querySelectorAll('.control-section .section-title').forEach((heading, index) => {
+                if (headingTexts[index] && heading.textContent !== headingTexts[index]) heading.textContent = headingTexts[index];
             });
             const sizeButtons = document.querySelectorAll('.control-section:first-child .btn');
-            if (sizeButtons[0]) text('.control-section:first-child .btn:nth-child(1)', t.standard);
-            if (sizeButtons[1]) text('.control-section:first-child .btn:nth-child(2)', t.wide);
-            leadingLabel('label[for="fontUpload"]', t.upload);
-            text('#fontStatus', t.loaded);
+            if (sizeButtons[0] && sizeButtons[0].textContent !== t.standard) sizeButtons[0].textContent = t.standard;
+            if (sizeButtons[1] && sizeButtons[1].textContent !== t.wide) sizeButtons[1].textContent = t.wide;
+            setLabelPrefix('label[for="fontUpload"]', t.upload);
+            setText('#fontStatus', t.loaded);
             const input = document.getElementById('textInput');
             if (input) input.placeholder = t.placeholder;
-            const presetButtons = document.querySelectorAll('.preset-text');
-            const presetTexts = [t.presetHello, 'HELLO', t.presetNext, t.presetLike];
-            const presetValues = [currentLanguage === 'en' ? 'Hello World' : '你好 世界', 'HELLO', currentLanguage === 'en' ? 'Next stop: Tech Park' : '下一站：科技园', currentLanguage === 'en' ? 'Like 👍' : '点赞👍'];
-            presetButtons.forEach((button, index) => {
-                if (presetTexts[index]) button.textContent = presetTexts[index];
-                if (presetValues[index]) button.dataset.text = presetValues[index];
+            const presets = document.querySelectorAll('.preset-text');
+            const presetNames = [t.presetHello, 'HELLO', t.presetNext, t.presetLike];
+            const presetPayloads = [currentLanguage === 'en' ? 'Hello World' : '你好 世界', 'HELLO', currentLanguage === 'en' ? 'Next stop: Tech Park' : '下一站：科技园', currentLanguage === 'en' ? 'Like 👍' : '点赞👍'];
+            presets.forEach((button, index) => {
+                if (presetNames[index] && button.textContent !== presetNames[index]) button.textContent = presetNames[index];
+                if (presetPayloads[index]) button.dataset.text = presetPayloads[index];
             });
-            leadingLabel('label[for="displayMode"]', t.mode);
-            const modes = document.querySelectorAll('#displayMode option');
-            if (modes[0]) text('#displayMode option[value="static"]', t.staticMode);
-            if (modes[1]) text('#displayMode option[value="scroll"]', t.scrollMode);
-            leadingLabel('#scrollOpts label', t.speed);
-            leadingLabel('label[for="fontSizeScale"]', t.scale);
-            leadingLabel('label[for="threshold"]', t.threshold);
-            leadingLabel('label[for="ledColor"]', t.custom);
-            text('#presetsLabel', t.presets);
-            text('#btnReplay', t.replay);
-            text('#btnSaveImg', t.saveImage);
-            text('.app-footer', t.footer);
-            text('#settingTitle', t.dialogTitle);
-            leadingLabel('label[for="regionSelect"]', t.region);
-            text('#btnCancelSettings', t.cancel);
-            text('#btnSaveSettings', t.save);
+            setLabelPrefix('label[for="displayMode"]', t.mode);
+            setText('#displayMode option[value="static"]', t.staticMode);
+            setText('#displayMode option[value="scroll"]', t.scrollMode);
+            setLabelPrefix('#scrollOpts label', t.speed);
+            setLabelPrefix('label[for="fontSizeScale"]', t.scale);
+            setLabelPrefix('label[for="threshold"]', t.threshold);
+            setLabelPrefix('label[for="ledColor"]', t.custom);
+            setText('#presetsLabel', t.presets);
+            setText('#btnReplay', t.replay);
+            setText('#btnSaveImg', t.saveImage);
+            setText('.app-footer', t.footer);
+            setText('#settingTitle', t.dialogTitle);
+            setLabelPrefix('label[for="regionSelect"]', t.region);
+            setText('#btnCancelSettings', t.cancel);
+            setText('#btnSaveSettings', t.save);
             closeButton.setAttribute('aria-label', t.close);
-            translateDynamicElements();
+            updateDynamicText();
         };
 
-        const openModal = () => { modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); document.body.classList.add('modal-open'); regionSelect.focus(); };
-        const closeModal = () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); document.body.classList.remove('modal-open'); openButton.focus(); };
-        const applySelectedRegion = () => {
-            try { localStorage.setItem(STORAGE_KEY, regionSelect.value); } catch (error) { console.warn('Unable to save region preference:', error); }
-            applyLanguage(regionLanguages[regionSelect.value] || 'zh-CN');
+        const closeModal = () => {
+            modal.classList.remove('open');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+            openButton.focus();
         };
-        const onBackdropClick = event => { if (event.target === modal) closeModal(); };
-        const onKeydown = event => { if (event.key === 'Escape' && modal.classList.contains('open')) closeModal(); };
-        listen(openButton, 'click', openModal);
-        listen(closeButton, 'click', closeModal);
-        listen(cancelButton, 'click', closeModal);
-        listen(saveButton, 'click', () => { applySelectedRegion(); closeModal(); });
-        listen(regionSelect, 'change', applySelectedRegion);
-        listen(modal, 'click', onBackdropClick);
-        listen(document, 'keydown', onKeydown);
-        window[HANDLER_KEY] = handlers;
+        openButton.addEventListener('click', () => {
+            modal.classList.add('open');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+            regionSelect.focus();
+        }, { signal: controller.signal });
+        closeButton.addEventListener('click', closeModal, { signal: controller.signal });
+        cancelButton.addEventListener('click', closeModal, { signal: controller.signal });
+        saveButton.addEventListener('click', () => {
+            try { localStorage.setItem(STORAGE_KEY, regionSelect.value); }
+            catch (error) { console.warn('Unable to save region preference:', error); }
+            applyLanguage(regionLanguages[regionSelect.value] || 'zh-CN');
+            closeModal();
+        }, { signal: controller.signal });
+        regionSelect.addEventListener('change', () => {
+            try { localStorage.setItem(STORAGE_KEY, regionSelect.value); }
+            catch (error) { console.warn('Unable to save region preference:', error); }
+            applyLanguage(regionLanguages[regionSelect.value] || 'zh-CN');
+        }, { signal: controller.signal });
+        modal.addEventListener('click', event => { if (event.target === modal) closeModal(); }, { signal: controller.signal });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && modal.classList.contains('open')) closeModal();
+        }, { signal: controller.signal });
 
         try {
             const savedRegion = localStorage.getItem(STORAGE_KEY);
@@ -170,14 +177,15 @@
         } catch (error) { console.warn('Unable to read region preference:', error); }
         applyLanguage(regionLanguages[regionSelect.value] || 'zh-CN');
 
-        // main.js changes only these dynamic strings. Translate only when their text actually differs,
-        // so our own DOM updates cannot create a MutationObserver feedback loop.
-        const observer = new MutationObserver(translateDynamicElements);
+        // Watch only strings that main.js changes dynamically. The update function is guarded and
+        // writes only when needed, preventing observer feedback loops and repeated rendering.
+        const observer = new MutationObserver(updateDynamicText);
         ['scrollStatus', 'btnRecord', 'toast'].forEach(id => {
             const element = document.getElementById(id);
             if (element) observer.observe(element, { childList: true, characterData: true, subtree: true });
         });
-        window[OBSERVER_KEY] = observer;
+        controller.signal.addEventListener('abort', () => observer.disconnect(), { once: true });
+        window[CONTROLLER_KEY] = { destroy() { controller.abort(); observer.disconnect(); } };
     };
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initSettings, { once: true });

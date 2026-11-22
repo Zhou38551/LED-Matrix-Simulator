@@ -4,17 +4,17 @@
 
 ### 改动 | Changes
 
-- 新增地区驱动的简体中文、繁体中文和英文界面切换，选择后即时生效并保存设置，页面加载时自动恢复。
-  Added region-based Simplified Chinese, Traditional Chinese, and English UI switching. Changes apply immediately, are saved, and are restored on page load.
+- 更新地区选项显示名称为 China (Mainland) 和 China (Hong Kong, Macao, Taiwan)，并保留 UK、USA；对应的简体中文、繁体中文和英文语言映射不变。
+  Updated the region labels to China (Mainland) and China (Hong Kong, Macao, Taiwan), while keeping UK and USA unchanged; the Simplified Chinese, Traditional Chinese, and English locale mappings remain unchanged.
 
-- 地区选项保留 China（大陆）、China（港澳台）、UK 和 USA。
-  Retained the region options China (Mainland), China (Hong Kong, Macau & Taiwan), UK, and USA.
+- 修复地区切换的实时 DOM 文本更新，地区变更后立即生效，无需刷新页面。
+  Fixed live DOM text updates when switching regions; locale changes now apply immediately without a page refresh.
 
-- 更新页面版本号至 beta 1.0.1。
-  Updated the page version to beta 1.0.1.
+- 修复动态文本监听的重复更新问题，确保观察器不产生反馈循环，并确保初始化时清理旧监听器。
+  Fixed duplicate dynamic-text updates: the observer no longer creates feedback loops, and prior listeners are cleaned up during initialization.
 
-- 保持多文件结构，未修改 main.js 的点阵渲染逻辑。
-  Kept the multi-file structure and left the matrix rendering logic in main.js unchanged.
+- 保留 localStorage 地区设置持久化；未改动 main.js 点阵渲染逻辑，并保持多文件结构。
+  Preserved region preference persistence in localStorage; left the matrix rendering logic in main.js unchanged and retained the multi-file structure.
 
 ## v1.0.0-beta
 
