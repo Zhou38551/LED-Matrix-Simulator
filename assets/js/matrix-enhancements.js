@@ -1,165 +1,119 @@
 (() => {
-    const CONTROLLER_KEY = '__ledMatrixPreviewControls';
-    const translations = {
-        'zh-CN': { previewTitle: '字模边界预览', margin: '安全边距', unit: '%', bounds: '字模边界', empty: '暂无字模', hint: '边框表示有效字模范围；虚线表示安全区域。', footer: 'LED Matrix Simulator · v1.0.2-beta · 开源项目' },
-        'zh-TW': { previewTitle: '字模邊界預覽', margin: '安全邊距', unit: '%', bounds: '字模邊界', empty: '尚無字模', hint: '實線框表示有效字模範圍；虛線表示安全區域。', footer: 'LED Matrix Simulator · v1.0.2-beta · 開源專案' },
-        en: { previewTitle: 'Glyph Bounds Preview', margin: 'Safe margin', unit: '%', bounds: 'Glyph bounds', empty: 'No glyph bitmap yet', hint: 'Solid outline shows glyph bounds; dashed outline shows the safe area.', footer: 'LED Matrix Simulator · v1.0.2-beta · Open Source' },
-    };
+    const PATCH_KEY = '__ledMatrixGlyphSamplingPatch';
 
     const init = () => {
-        if (window[CONTROLLER_KEY]) window[CONTROLLER_KEY].abort();
-        const controller = new AbortController();
-        const signal = controller.signal;
-        const panel = document.querySelector('.control-panel');
-        if (!panel || typeof Renderer === 'undefined' || typeof AppState === 'undefined') return;
+        if (window[PATCH_KEY]) return;
+        if (typeof Renderer === 'undefined' || typeof AppState === 'undefined') return;
 
-        const featureSection = document.createElement('section');
-        featureSection.className = 'control-section matrix-tools';
-        featureSection.innerHTML = `
-            <div class="section-title" id="matrixToolsTitle"></div>
-            <div class="control-row matrix-tools-row">
-                <div class="control-group matrix-margin-control">
-                    <label for="safeMargin"><span id="safeMarginLabel"></span> <strong id="safeMarginValue">5</strong><span id="safeMarginUnit">%</span></label>
-                    <input type="range" id="safeMargin" min="0" max="20" value="5" step="1" aria-describedby="safeMarginHint">
-                </div>
-                <div class="matrix-preview" role="img" aria-labelledby="glyphPreviewTitle" aria-describedby="glyphPreviewHint">
-                    <div class="matrix-preview-heading"><strong id="glyphPreviewTitle"></strong><span id="glyphBoundsText"></span></div>
-                    <canvas id="glyphPreviewCanvas" width="384" height="64"></canvas>
-                    <p id="glyphPreviewHint"></p>
-                </div>
-            </div>`;
-        panel.appendChild(featureSection);
-
-        const preview = document.getElementById('glyphPreviewCanvas');
-        const previewCtx = preview.getContext('2d');
-        const marginInput = document.getElementById('safeMargin');
-        const marginValue = document.getElementById('safeMarginValue');
         const originalBuildBitmap = Renderer.buildBitmap;
-        const originalDraw = Renderer.draw;
-        const getLocale = () => translations[document.documentElement.lang] ? document.documentElement.lang : 'zh-CN';
 
-        const applyFeatureLanguage = () => {
-            const t = translations[getLocale()];
-            document.getElementById('matrixToolsTitle').textContent = t.previewTitle;
-            document.getElementById('glyphPreviewTitle').textContent = t.previewTitle;
-            document.getElementById('safeMarginLabel').textContent = t.margin;
-            document.getElementById('safeMarginUnit').textContent = t.unit;
-            document.getElementById('safeMarginHint')?.replaceChildren(document.createTextNode(t.hint));
-            document.getElementById('glyphPreviewHint').textContent = t.hint;
-            document.getElementById('appVersion')?.replaceChildren(document.createTextNode(t.footer));
-            drawPreview();
-        };
+        // HZK16 already samples each bitmap column directly. Keep that path unchanged and
+        // replace only the 1280 × 160 standard-panel sampler, which previously inspected
+        // only every other source pixel and averaged four samples per LED cell. Thin strokes
+        // could therefore be omitted or become uneven.
+        const buildStandardBitmap = () => {
+            const cleanText = AppState.text.replace(/[\r\n]+/g, '  ').trim() || ' ';
+            const fontString = Renderer.getActiveFont();
+            const off = document.createElement('canvas');
+            const pixelsPerCell = 4;
+            off.width = Math.max(800, AppState.GRID_COLS * pixelsPerCell);
+            off.height = Math.max(100, AppState.GRID_ROWS * pixelsPerCell);
+            const ctx = off.getContext('2d', { willReadFrequently: true });
+            if (!ctx) return;
 
-        const repairOneCellGaps = () => {
-            const bitmap = AppState.bitmap2D;
-            if (!Array.isArray(bitmap) || !bitmap.length) return;
-            const rows = bitmap.length;
-            const cols = Math.min(...bitmap.map(row => Array.isArray(row) ? row.length : 0));
-            if (!cols) return;
-            const repaired = bitmap.map(row => row.slice());
-            // Bridge only single-cell horizontal/vertical sampling gaps; avoid broad dilation,
-            // which would noticeably thicken glyphs or merge adjacent characters.
-            for (let r = 1; r < rows - 1; r++) {
-                for (let c = 1; c < cols - 1; c++) {
-                    if (bitmap[r][c]) continue;
-                    if ((bitmap[r][c - 1] && bitmap[r][c + 1]) || (bitmap[r - 1][c] && bitmap[r + 1][c])) repaired[r][c] = 1;
-                }
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, off.width, off.height);
+            ctx.fillStyle = '#fff';
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+
+            const maxHeight = off.height * 0.82;
+            const maxWidth = off.width * 0.95;
+            let fontSize = maxHeight;
+            ctx.font = `${fontSize}px ${fontString}`;
+            let metrics = ctx.measureText(cleanText);
+
+            // Scale uniformly to fit. Never scale the x-axis independently, preserving the
+            // native glyph aspect ratio and normal spacing for CJK characters.
+            if (metrics.width > maxWidth && metrics.width > 0) {
+                fontSize *= maxWidth / metrics.width;
             }
-            AppState.bitmap2D = repaired;
-        };
+            ctx.font = `${fontSize}px ${fontString}`;
+            metrics = ctx.measureText(cleanText);
+            const actualHeight = (metrics.actualBoundingBoxAscent || 0) + (metrics.actualBoundingBoxDescent || 0);
+            if (actualHeight > maxHeight && actualHeight > 0) fontSize *= maxHeight / actualHeight;
 
-        const drawPreview = () => {
-            if (!previewCtx) return;
-            const width = preview.width;
-            const height = preview.height;
-            previewCtx.clearRect(0, 0, width, height);
-            previewCtx.fillStyle = '#05050a';
-            previewCtx.fillRect(0, 0, width, height);
-            const bitmap = AppState.bitmap2D;
-            if (!Array.isArray(bitmap) || !bitmap.length) {
-                document.getElementById('glyphBoundsText').textContent = translations[getLocale()].empty;
-                return;
-            }
+            fontSize = Math.max(8, fontSize * AppState.fontSizeScale);
+            ctx.font = `${fontSize}px ${fontString}`;
+            ctx.fillText(cleanText, off.width / 2, off.height / 2);
 
-            const rows = bitmap.length;
-            const cols = Math.min(...bitmap.map(row => Array.isArray(row) ? row.length : 0));
-            let minX = cols, minY = rows, maxX = -1, maxY = -1;
-            for (let y = 0; y < rows; y++) {
-                for (let x = 0; x < cols; x++) {
-                    if (bitmap[y][x]) {
-                        minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-                        minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+            const image = ctx.getImageData(0, 0, off.width, off.height);
+            const rgba = image.data;
+            const bitmap = Array.from({ length: AppState.GRID_ROWS }, () => new Array(AppState.GRID_COLS).fill(0));
+            const blockW = off.width / AppState.GRID_COLS;
+            const blockH = off.height / AppState.GRID_ROWS;
+            let minCol = AppState.GRID_COLS;
+            let maxCol = -1;
+
+            for (let row = 0; row < AppState.GRID_ROWS; row++) {
+                const sy = Math.floor(row * blockH);
+                const ey = Math.floor((row + 1) * blockH);
+                for (let col = 0; col < AppState.GRID_COLS; col++) {
+                    const sx = Math.floor(col * blockW);
+                    const ex = Math.floor((col + 1) * blockW);
+                    let hasInk = false;
+
+                    // Examine every source pixel in this LED cell. A single above-threshold
+                    // coverage sample is sufficient: the raster is clean white text on black,
+                    // so this retains anti-aliased thin strokes without dilating neighbouring cells.
+                    for (let y = sy; y < ey && !hasInk; y++) {
+                        for (let x = sx; x < ex; x++) {
+                            const index = (y * off.width + x) * 4;
+                            const brightness = (rgba[index] * 0.299 + rgba[index + 1] * 0.587 + rgba[index + 2] * 0.114) / 255;
+                            if (brightness >= AppState.threshold) {
+                                hasInk = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (hasInk) {
+                        bitmap[row][col] = 1;
+                        minCol = Math.min(minCol, col);
+                        maxCol = Math.max(maxCol, col);
                     }
                 }
             }
-            if (maxX < minX || maxY < minY) {
-                document.getElementById('glyphBoundsText').textContent = translations[getLocale()].empty;
-                return;
-            }
 
-            const pad = 8;
-            const scale = Math.min((width - pad * 2) / cols, (height - pad * 2) / rows);
-            const renderedWidth = cols * scale;
-            const renderedHeight = rows * scale;
-            const offsetX = (width - renderedWidth) / 2;
-            const offsetY = (height - renderedHeight) / 2;
-            const marginRatio = Number(marginInput.value) / 100;
-            const marginX = renderedWidth * marginRatio;
-            const marginY = renderedHeight * marginRatio;
-
-            previewCtx.strokeStyle = '#ffb347';
-            previewCtx.setLineDash([4, 3]);
-            previewCtx.strokeRect(offsetX + marginX, offsetY + marginY, Math.max(0, renderedWidth - marginX * 2), Math.max(0, renderedHeight - marginY * 2));
-            previewCtx.setLineDash([]);
-            previewCtx.fillStyle = '#ff4040';
-            for (let y = 0; y < rows; y++) {
-                for (let x = 0; x < cols; x++) {
-                    if (bitmap[y][x]) previewCtx.fillRect(offsetX + x * scale, offsetY + y * scale, Math.max(1, scale - 0.35), Math.max(1, scale - 0.35));
-                }
+            AppState.bitmap2D = bitmap;
+            AppState.textLeftGrid = maxCol < 0 ? 0 : minCol;
+            AppState.textWidthGrid = maxCol < 0 ? 1 : maxCol + 1;
+            if (AppState.scrollOffset > AppState.textWidthGrid + AppState.GRID_COLS || AppState.scrollOffset < -AppState.GRID_COLS) {
+                AppState.scrollOffset = -AppState.GRID_COLS;
             }
-            previewCtx.strokeStyle = '#48c8ff';
-            previewCtx.lineWidth = 1;
-            previewCtx.strokeRect(offsetX + minX * scale, offsetY + minY * scale, (maxX - minX + 1) * scale, (maxY - minY + 1) * scale);
-            document.getElementById('glyphBoundsText').textContent = `${translations[getLocale()].bounds}: ${maxX - minX + 1} × ${maxY - minY + 1}`;
         };
 
-        // Safe margin reduces the rasterized font size before sampling, leaving a deliberate
-        // border on both panel types. Restore application state even if the original renderer throws.
         Renderer.buildBitmap = function() {
-            const originalScale = AppState.fontSizeScale;
-            try {
-                AppState.fontSizeScale = originalScale * (1 - Number(marginInput.value) / 100);
-                originalBuildBitmap.call(Renderer);
-                repairOneCellGaps();
-            } finally {
-                AppState.fontSizeScale = originalScale;
+            if (AppState.GRID_ROWS === 16) {
+                return originalBuildBitmap.call(Renderer);
             }
-        };
-        Renderer.draw = function() {
-            const result = originalDraw.apply(Renderer, arguments);
-            drawPreview();
-            return result;
+            return buildStandardBitmap();
         };
 
-        marginInput.addEventListener('input', () => {
-            marginValue.textContent = marginInput.value;
-            Renderer.refresh();
-        }, { signal });
-        const localeObserver = new MutationObserver(applyFeatureLanguage);
-        localeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
-        signal.addEventListener('abort', () => {
-            localeObserver.disconnect();
-            Renderer.buildBitmap = originalBuildBitmap;
-            Renderer.draw = originalDraw;
-            featureSection.remove();
-        }, { once: true });
-        window[CONTROLLER_KEY] = controller;
+        window[PATCH_KEY] = {
+            restore() {
+                Renderer.buildBitmap = originalBuildBitmap;
+                delete window[PATCH_KEY];
+            },
+        };
 
-        applyFeatureLanguage();
-        // Rebuild once with the default safe margin and refresh the preview, without re-binding main.js controls.
+        // Replace the former preview/safe-margin wrapper and rebuild with unmodified font scale.
         Renderer.refresh();
     };
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
-    else init();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+        init();
+    }
 })();
