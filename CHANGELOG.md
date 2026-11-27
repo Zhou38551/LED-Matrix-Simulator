@@ -1,5 +1,18 @@
 # 更新日志 | Changelog
 
+## v1.0.3-beta
+
+### 改动 | Changes
+
+- 设置弹窗右上角使用红色圆点关闭按钮，移除标题左侧的关闭符号，并保留 Esc 关闭。
+  Replaced the title-side close mark with a red top-right dot button; Escape-to-close remains available.
+- 设置弹窗及其内部面板改为直角，并将设置按钮移至页面头部右上角。
+  Made the settings dialog and its inner panels square-cornered, and moved the Settings button to the top-right of the page header.
+- 精修暗色界面的间距、对齐与边框，同时保持点阵渲染、画布比例和现有功能不变。
+  Refined dark-theme spacing, alignment, and borders while preserving matrix rendering, canvas proportions, and existing functionality.
+- 首次访问默认使用英文；已有地区与语言偏好继续保存在 localStorage 中。
+  English is the intended first-visit default; existing region and language preferences remain persisted in localStorage.
+
 ## v1.0.2-beta
 
 ### 改动 | Changes
