@@ -8,10 +8,10 @@
   Replaced the title-side close mark with a red top-right dot button; Escape-to-close remains available.
 - 设置弹窗及其内部面板改为直角，并将设置按钮移至页面头部右上角。
   Made the settings dialog and its inner panels square-cornered, and moved the Settings button to the top-right of the page header.
-- 精修暗色界面的间距、对齐与边框，同时保持点阵渲染、画布比例和现有功能不变。
-  Refined dark-theme spacing, alignment, and borders while preserving matrix rendering, canvas proportions, and existing functionality.
-- 首次访问默认使用英文；已有地区与语言偏好继续保存在 localStorage 中。
-  English is the intended first-visit default; existing region and language preferences remain persisted in localStorage.
+- 首次访问默认使用英文，已有地区偏好不变并继续通过 localStorage 保存。
+  English is the default on first visit; existing region preferences are preserved and continue to be stored in localStorage.
+- 更新页脚版本号；保留点阵渲染、滚动与录制、字体导入、颜色预设、多文件结构及设置持久化。
+  Updated the footer version while preserving matrix rendering, scrolling and recording, font import, color presets, the multi-file structure, and settings persistence.
 
 ## v1.0.2-beta
 
@@ -33,7 +33,7 @@
 
 ### 改动 | Changes
 
-- 更新地区选项显示名称为 China (Mainland) 和 China (Hong Kong, Macao, Taiwan)，并保留 UK、USA；对应的简体中文、繁体中文和英文语言映射不变。
+- 更新地区选项显示名称为 China (Mainland) �� China (Hong Kong, Macao, Taiwan)，并保留 UK、USA；对应的简体中文、繁体中文和英文语言映射不变。
   Updated the region labels to China (Mainland) and China (Hong Kong, Macao, Taiwan), while keeping UK and USA unchanged; locale mappings remain Simplified Chinese, Traditional Chinese, and English.
 
 - 修复地区切换的实时 DOM 文本更新，地区变更后立即生效，无需刷新页面。

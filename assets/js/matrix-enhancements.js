@@ -1,6 +1,18 @@
 (() => {
     const PATCH_KEY = '__ledMatrixGlyphSamplingPatch';
 
+    // Preserve the user's explicit region choice. On a clean first visit, seed the existing
+    // region preference with USA so settings.js initializes its English locale through its
+    // normal persistence and translation path.
+    try {
+        if (localStorage.getItem('ledMatrixRegion') === null) {
+            localStorage.setItem('ledMatrixRegion', 'usa');
+            document.documentElement.lang = 'en';
+        }
+    } catch (error) {
+        // If storage is unavailable, the locale settings controller still initializes normally.
+    }
+
     const init = () => {
         if (window[PATCH_KEY]) return;
         if (typeof Renderer === 'undefined' || typeof AppState === 'undefined') return;
@@ -106,6 +118,20 @@
                 delete window[PATCH_KEY];
             },
         };
+
+        // Keep the displayed release version current even when the locale controller updates
+        // footer text. This observer is limited to the footer and does not touch rendering.
+        const footer = document.getElementById('appVersion');
+        if (footer) {
+            const releaseFooter = () => {
+                const isEnglish = document.documentElement.lang === 'en';
+                const version = isEnglish ? 'LED Matrix Simulator · v1.0.3-beta · Open Source' : 'LED Matrix Simulator · v1.0.3-beta · 开源��目';
+                if (footer.textContent !== version) footer.textContent = version;
+            };
+            const footerObserver = new MutationObserver(releaseFooter);
+            footerObserver.observe(footer, { childList: true, characterData: true, subtree: true });
+            releaseFooter();
+        }
 
         // Replace the former preview/safe-margin wrapper and rebuild with unmodified font scale.
         Renderer.refresh();
