@@ -1,10 +1,10 @@
 (() => {
     const PATCH_KEY = '__ledMatrixGlyphSamplingPatch';
 
-    // Set the English first-visit region before settings.js reads its existing preference.
+    // English is the first-visit language and the UK is the initial region.
     try {
         if (localStorage.getItem('ledMatrixRegion') === null) {
-            localStorage.setItem('ledMatrixRegion', 'usa');
+            localStorage.setItem('ledMatrixRegion', 'uk');
             document.documentElement.lang = 'en';
         }
     } catch (error) {
@@ -79,7 +79,7 @@
 
         const script = document.createElement('script');
         script.src = 'assets/js/settings-v104.js';
-        script.defer = true;
+        script.async = true;
         document.head.appendChild(script);
         Renderer.refresh();
     };
