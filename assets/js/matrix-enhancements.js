@@ -1,7 +1,6 @@
 (() => {
     const PATCH_KEY = '__ledMatrixGlyphSamplingPatch';
 
-    // English is the first-visit language and the UK is the initial region.
     try {
         if (localStorage.getItem('ledMatrixRegion') === null) {
             localStorage.setItem('ledMatrixRegion', 'uk');
@@ -16,8 +15,6 @@
         if (typeof Renderer === 'undefined' || typeof AppState === 'undefined') return;
         const originalBuildBitmap = Renderer.buildBitmap;
 
-        // HZK16 remains on the original sampler; improve standard-panel sampling without
-        // changing canvas dimensions, rendering geometry, or the scroll/recording pipeline.
         const buildStandardBitmap = () => {
             const cleanText = AppState.text.replace(/[\r\n]+/g, '  ').trim() || ' ';
             const fontString = Renderer.getActiveFont();
@@ -69,7 +66,7 @@
             const footer = document.getElementById('appVersion');
             if (!footer) return;
             const english = document.documentElement.lang === 'en';
-            const text = english ? 'LED Matrix Simulator · v1.0.4-beta · Open Source' : 'LED Matrix Simulator · v1.0.4-beta · 开源项目';
+            const text = english ? 'LED Matrix Simulator · v1.0.5-beta · Open Source' : 'LED Matrix Simulator · v1.0.5-beta · 开源项目';
             if (footer.textContent !== text) footer.textContent = text;
         };
         const footer = document.getElementById('appVersion');
@@ -77,10 +74,14 @@
         new MutationObserver(releaseFooter).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
         releaseFooter();
 
-        const script = document.createElement('script');
-        script.src = 'assets/js/settings-v104.js';
-        script.async = true;
-        document.head.appendChild(script);
+        const settingsScript = document.createElement('script');
+        settingsScript.src = 'assets/js/settings.js';
+        settingsScript.async = true;
+        document.head.appendChild(settingsScript);
+        const v105 = document.createElement('script');
+        v105.src = 'assets/js/v105-features.js';
+        v105.async = true;
+        document.head.appendChild(v105);
         Renderer.refresh();
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });

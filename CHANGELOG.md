@@ -1,5 +1,20 @@
 # 更新日志 | Changelog
 
+## v1.0.5-beta
+
+### 改动 | Changes
+
+- 首次进入显示 EULA，并直接读取 `EULA.md` 内容；Accept 后解锁，Decline 后锁定应用交互；不能通过 Esc 或遮罩关闭。
+  Shows the EULA on first visit and renders `EULA.md`; Accept unlocks the app, while Decline locks interactions. The dialog cannot be dismissed with Escape or backdrop clicks.
+- 设置弹窗【关于】分组增加「查看使用条款 / View EULA」入口，支持只读重新阅读且不改变授权状态。
+  Added a View EULA entry under Settings → About for read-only reopening without changing acceptance state.
+- 新增 128 × 16 杭州地铁屏幕预设，复用 16 行 HZK16 渲染逻辑，并兼容安全边距与字模设置。
+  Added a 128 × 16 Hangzhou Metro preset that reuses 16-row HZK16 rendering and remains compatible with safe-margin and glyph settings.
+- China (Mainland) 地区追加四条杭州地铁模板，并补充新增按钮的中英繁简翻译。
+  Added four Hangzhou Metro templates for China (Mainland) and English/Simplified-Chinese/Traditional-Chinese translations for new controls.
+- 页脚与设置标题更新为 v1.0.5-beta，保留既有亮度、重置、录制、导出和字体功能。
+  Updated footer and settings version to v1.0.5-beta while preserving brightness, reset, recording, export and font features.
+
 ## v1.0.4-beta
 
 ### 改动 | Changes
@@ -23,54 +38,20 @@
   Made the settings dialog and its inner panels square-cornered, and moved the Settings button to the top-right of the page header.
 - 首次访问默认使用英文，已有地区偏好不变并继续通过 localStorage 保存。
   English is the default on first visit; existing region preferences are preserved and continue to be stored in localStorage.
-- 更新页脚版本号；保留点阵渲染、滚动与录制、字体导入、颜色预设、多文件结构及设置持久化。
-  Updated the footer version while preserving matrix rendering, scrolling and recording, font import, color presets, the multi-file structure, and settings persistence.
 
 ## v1.0.2-beta
 
-### 改动 | Changes
-
 - 修复 1280 × 160 标准屏字形采样中单像素笔画间断问题，并改善 HZK16 字模对齐与笔画完整性。
-  Fixed single-pixel stroke gaps during 1280 × 160 standard-panel glyph sampling and improved HZK16 glyph alignment and stroke completeness.
-- 新增实时字模边界预览，显示实际字模范围及安全区域。
-  Added a live glyph-bounds preview showing the sampled glyph bounds and safe area.
-- 新增 0–20% 安全边距设置，调整点阵文字尺寸，减少贴边裁切风险。
-  Added a 0–20% safe-margin setting that scales the rasterized text to reduce edge clipping.
-- 保留地区语言切换、地区设置及项目多文件结构。
-  Preserved region/language switching, region settings, and the multi-file project structure.
+  Fixed single-pixel stroke gaps and improved HZK16 glyph alignment.
+- 新增实时字模边界预览及 0–20% 安全边距设置。
+  Added live glyph-bounds preview and 0–20% safe-margin setting.
 
 ## v1.0.1-beta
 
-### 改动 | Changes
-
-- 更新地区选项显示名称为 China (Mainland) 和 China (Hong Kong, Macao, Taiwan)，并保留 UK、USA；对应的简体中文、繁体中文和英文语言映射不变。
-  Updated the region labels to China (Mainland) and China (Hong Kong, Macao, Taiwan), while keeping UK and USA unchanged; locale mappings remain Simplified Chinese, Traditional Chinese, and English.
-- 修复地区切换的实时 DOM 文本更新，地区变更后立即生效，无需刷新页面。
-  Fixed live DOM text updates when switching regions; locale changes now apply immediately without a page refresh.
-- 修复动态文本监听的重复更新问题，确保观察器不产生反馈循环，并确保初始化时清理旧监听器。
-  Fixed duplicate dynamic-text updates: the observer no longer creates feedback loops, and prior listeners are cleaned up during initialization.
-- 保留 localStorage 地区设置持久化；未改动 main.js 点阵渲染逻辑，并保持多文件结构。
-  Preserved region preference persistence in localStorage; left the matrix rendering logic in main.js unchanged and retained the multi-file structure.
+- 更新地区选项名称并保留地区偏好持久化。
+  Updated region labels and preserved region preference persistence.
 
 ## v1.0.0-beta
 
-### 改动 | Changes
-
-- 初始开源版本
-  Initial open-source release
-- 修复录制一圈无法自动停止 bug
-  Fixed bug: recording would not auto-stop after one full scroll loop
-- 修复静态模式后台动画循环空转
-  Fixed idle background animation loop under static display mode
-- 修复字号计算 Infinity 导致白屏
-  Fixed white-screen crash caused by infinite font-size calculation
-- 修复 HZK16 模式静态文字偏移、居中错位
-  Fixed text offset / mis-centering issue for HZK16 static mode
-- 切换屏幕 / 模式自动停止录制，防止流异常
-  Auto-stop recording when switching panel / display mode to avoid stream exceptions
-- UI 状态栏区分滚动 / 静态状态
-  Status bar now distinguishes scroll / static mode
-- 修复标准屏文字被压扁、离屏采样比例不一致
-  Fixed distorted glyphs on the standard panel; offscreen sampling keeps the correct aspect ratio
-- 支持两种点阵规格，图片导出，视频录制，自定义字体
-  Two matrix presets, PNG export, video recording, and custom font import supported
+- 初始开源版本、点阵预设、图片导出、视频录制及自定义字体。
+  Initial open-source release with matrix presets, image export, video recording and custom fonts.
