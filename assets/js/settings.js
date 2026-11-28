@@ -1,27 +1,10 @@
-// settings.js — self-contained v1.0.4 grouped settings panel
+// settings-v104.js — grouped settings panel for LED Matrix Simulator v1.0.4-beta
 (() => {
-    'use strict';
-
-    const CONTROLLER_KEY = '__ledMatrixSettingsController';
     const STORAGE_KEY = 'ledMatrixSettingsV104';
     const REGION_KEY = 'ledMatrixRegion';
+    const CONTROLLER_KEY = '__ledMatrixSettingsV104Controller';
     const defaults = Object.freeze({ brightness: 100, grid: true, beadBorder: true, safeMargin: 0, exportFormat: 'png', frameRate: 30 });
     const regionLanguage = { 'china-mainland': 'zh-CN', 'china-hmt': 'zh-TW', uk: 'en', usa: 'en' };
-
-    // matrix-enhancements.js still contains a legacy dynamic loader. Block only that
-    // obsolete script so this file remains the single source of settings UI and state.
-    if (document.head && !document.head.__settingsV104AppendGuard) {
-        const originalAppendChild = document.head.appendChild;
-        document.head.appendChild = function(node) {
-            if (node && node.tagName === 'SCRIPT' && /(?:^|\/)settings-v104\.js(?:[?#].*)?$/.test(node.getAttribute('src') || '')) {
-                console.info('[settings v1.0.4] Ignored legacy settings-v104.js loader.');
-                return node;
-            }
-            return originalAppendChild.call(this, node);
-        };
-        document.head.__settingsV104AppendGuard = true;
-    }
-
     const styleText = `
       .v104-modal{display:none;position:fixed;inset:0;z-index:1100;padding:16px;background:rgba(0,0,0,.76);align-items:center;justify-content:center}
       .v104-modal.open{display:flex}.v104-box{width:min(920px,100%);max-height:min(90vh,900px);overflow:auto;background:var(--surface,#15152a);color:var(--text,#e8e8f0);border:1px solid var(--border,#2a2a44);box-shadow:0 18px 60px #000b;padding:20px}
@@ -37,31 +20,21 @@
         try { return { ...defaults, ...JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') }; }
         catch (_) { return { ...defaults }; }
     };
-    const savePreferences = preferences => {
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences)); }
-        catch (error) { console.warn('[settings v1.0.4] Could not save preferences:', error); }
+    const savePreferences = state => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+        catch (error) { console.warn('[settings v1.0.4-beta] Could not save preferences:', error); }
     };
-
-    const initialize = () => {
+    const init = () => {
         if (window[CONTROLLER_KEY]) window[CONTROLLER_KEY].destroy();
-
-        const originalButton = document.getElementById('btnSettings') || document.getElementById('btnOpenSettings');
+        const openButtonOriginal = document.getElementById('btnSettings') || document.getElementById('btnOpenSettings');
         const oldModal = document.getElementById('settingModal');
-        if (!originalButton) {
-            console.warn('[settings v1.0.4] Settings button #btnSettings/#btnOpenSettings was not found.');
-            return;
-        }
+        if (!openButtonOriginal) return;
 
-        // Replacing the trigger and modal removes legacy anonymous handlers as well as
-        // stale popup markup. Keep #settingModal and #regionSelect for compatibility.
-        const openButton = originalButton.cloneNode(true);
-        openButton.removeAttribute('onclick');
-        originalButton.replaceWith(openButton);
-        const oldRegion = oldModal && oldModal.querySelector('#regionSelect');
-        let regionSelect = oldRegion ? oldRegion.cloneNode(true) : null;
-        if (oldModal) oldModal.remove();
-        document.querySelectorAll('#regionModal,#regionModalOverlay,.region-modal,[data-region-modal]').forEach(node => node.remove());
-
+        // Replacing nodes drops legacy anonymous click listeners that cannot be removed by name.
+        const openButton = openButtonOriginal.cloneNode(true);
+        openButtonOriginal.replaceWith(openButton);
+        let regionSelect = oldModal && oldModal.querySelector('#regionSelect');
+        const oldModalParent = oldModal && oldModal.parentNode;
         const modal = document.createElement('div');
         modal.id = 'settingModal';
         modal.className = 'v104-modal setting-modal';
@@ -69,75 +42,87 @@
         modal.setAttribute('aria-modal', 'true');
         modal.setAttribute('aria-labelledby', 'settingTitle');
         modal.setAttribute('aria-hidden', 'true');
-        modal.innerHTML = `<div class="v104-box setting-box"><div class="v104-heading"><h2 id="settingTitle">Settings · v1.0.4-beta</h2><button class="modal-close" id="btnCloseSettings" type="button" aria-label="Close settings">×</button></div><div class="v104-tabs" role="tablist" aria-label="Settings groups"></div><div class="v104-content"></div><div class="v104-actions"><button class="btn btn-outline" id="btnCancelSettings" type="button">Cancel</button><button class="btn btn-primary" id="btnApplySettings" type="button">Done</button></div></div>`;
-        document.body.appendChild(modal);
+        modal.innerHTML = `<div class="v104-box setting-box"><div class="v104-heading"><h2 id="settingTitle">Settings · v1.0.4-beta</h2><button class="modal-close" id="btnCloseSettings" type="button" aria-label="Close settings">×</button></div><nav class="v104-tabs" role="tablist" aria-label="Settings groups"></nav><div class="v104-content"></div><div class="v104-actions"><button class="btn btn-outline" id="btnCancelSettings" type="button">Close</button></div></div>`;
+        if (oldModalParent) oldModal.replaceWith(modal);
+        else document.body.appendChild(modal);
 
-        let style = document.getElementById('settings-v104-style');
-        if (!style) { style = document.createElement('style'); style.id = 'settings-v104-style'; document.head.appendChild(style); }
-        style.textContent = styleText;
-
+        const style = document.createElement('style'); style.id = 'settings-v104-style'; style.textContent = styleText;
+        document.head.appendChild(style);
         const controls = document.querySelector('.control-panel');
         const content = modal.querySelector('.v104-content');
         const tabs = modal.querySelector('.v104-tabs');
+        const closeButton = modal.querySelector('#btnCloseSettings');
         if (controls) content.appendChild(controls);
-        const sections = controls ? Array.from(controls.querySelectorAll(':scope > .control-section')) : [];
-        const sectionFor = selector => sections.find(section => section.querySelector(selector));
-        const groups = [
-            { id: 'basic', label: '基础设置', selectors: ['#sectionPanel'], description: '地区与面板尺寸' },
-            { id: 'display', label: '模拟器显示', selectors: ['#sectionDisplay', '#sectionColor'], description: '显示模式、亮度与灯珠样式' },
-            { id: 'glyph', label: '字模渲染', selectors: ['#sectionFont', '#sectionStyle'], description: '文字、字体与字模采样' },
-            { id: 'export', label: '导出与录制', selectors: ['#sectionExport'], description: '图片导出与视频录制' },
-            { id: 'about', label: '关于', selectors: [], description: '项目与设置重置' }
-        ];
-        const groupedSections = {};
-        groups.forEach(group => {
-            groupedSections[group.id] = group.selectors.map(sectionFor).filter(Boolean);
-            const tab = document.createElement('button');
-            tab.type = 'button'; tab.className = 'v104-tab'; tab.id = `v104-tab-${group.id}`;
-            tab.dataset.group = group.id; tab.setAttribute('role', 'tab');
-            tab.setAttribute('aria-controls', `v104-panel-${group.id}`);
-            tab.setAttribute('aria-label', `${group.label}：${group.description}`);
-            tab.textContent = group.label; tabs.appendChild(tab);
-        });
 
-        sections.forEach(section => {
+        const allSections = controls ? Array.from(controls.querySelectorAll(':scope > .control-section')) : [];
+        const sectionFor = selector => allSections.find(section => section.querySelector(selector));
+        const groups = [
+            { id: 'basic', label: 'Basic settings', selectors: ['#sectionPanel'], description: 'Region and panel size' },
+            { id: 'display', label: 'Simulator display', selectors: ['#sectionDisplay', '#sectionStyle', '#sectionColor'], description: 'Display mode, pixel style and color' },
+            { id: 'glyph', label: 'Glyph rendering', selectors: ['#sectionFont'], description: 'Text, font and glyph sampling' },
+            { id: 'export', label: 'Export & recording', selectors: ['#sectionExport'], description: 'Image export and video recording' },
+            { id: 'about', label: 'About', selectors: [], description: 'Project information' },
+        ];
+        const groupSections = {};
+        for (const group of groups) {
+            groupSections[group.id] = group.selectors.map(sectionFor).filter(Boolean);
+            const tab = document.createElement('button');
+            tab.type = 'button'; tab.className = 'v104-tab'; tab.role = 'tab';
+            tab.id = `v104-tab-${group.id}`; tab.dataset.group = group.id; tab.textContent = group.label;
+            tab.setAttribute('aria-controls', `v104-panel-${group.id}`);
+            tabs.appendChild(tab);
+        }
+        const aboutSection = document.createElement('section');
+        aboutSection.className = 'control-section v104-about'; aboutSection.dataset.v104Group = 'about';
+        aboutSection.innerHTML = `<div class="section-title">About this project</div><p>LED Matrix Simulator · v1.0.4-beta</p><p>Open-source LED dot-matrix sign simulator.</p><p><a href="https://github.com/Zhou38551/LED-Matrix-Simulator" target="_blank" rel="noopener noreferrer">View the project on GitHub</a></p><button class="btn btn-outline" id="v104-reset" type="button">Reset all settings</button>`;
+        if (controls) controls.appendChild(aboutSection);
+        groupSections.about = [aboutSection];
+
+        // Keep the original .control-panel and its first .control-section intact for main.js selectors.
+        allSections.forEach(section => {
             const group = groups.find(item => item.selectors.some(selector => section.querySelector(selector)));
             section.dataset.v104Group = group ? group.id : 'basic';
+            const title = section.querySelector('.section-title');
+            if (title) title.dataset.originalTitle = title.textContent;
         });
-
-        if (!regionSelect) {
-            regionSelect = document.createElement('select');
-            regionSelect.id = 'regionSelect';
-            regionSelect.innerHTML = '<option value="china-mainland">中国大陆</option><option value="china-hmt">中国港澳台</option><option value="uk">United Kingdom</option><option value="usa">United States</option>';
+        if (regionSelect) {
+            const label = oldModal.querySelector('label[for="regionSelect"]');
+            const regionWrap = document.createElement('div'); regionWrap.className = 'control-group v104-region';
+            regionWrap.innerHTML = '<label for="regionSelect">Region</label>';
+            regionWrap.appendChild(regionSelect);
+            const basic = sectionFor('#sectionPanel');
+            if (basic) basic.appendChild(regionWrap);
+            if (label) label.remove();
+        } else {
+            const basic = sectionFor('#sectionPanel');
+            if (basic) {
+                const regionWrap = document.createElement('div'); regionWrap.className = 'control-group v104-region';
+                regionWrap.innerHTML = '<label for="v104-region">Region</label><select id="v104-region"><option value="china-mainland">China (Mainland)</option><option value="china-hmt">China (Hong Kong, Macao, Taiwan)</option><option value="uk">United Kingdom</option><option value="usa">United States</option></select>';
+                basic.appendChild(regionWrap); regionSelect = regionWrap.querySelector('select');
+            }
         }
-        regionSelect.id = 'regionSelect';
-        regionSelect.setAttribute('aria-label', '地区 / Region');
-        const regionWrap = document.createElement('div');
-        regionWrap.className = 'control-group v104-region';
-        regionWrap.innerHTML = '<label for="regionSelect">地区 / Region</label>';
-        regionWrap.appendChild(regionSelect);
-        const basicSection = sectionFor('#sectionPanel') || sections[0];
-        if (basicSection) basicSection.appendChild(regionWrap);
+        if (regionSelect) {
+            Array.from(regionSelect.options).forEach(option => { if (option.value === 'uk') option.textContent = 'United Kingdom'; if (option.value === 'usa') option.textContent = 'United States'; });
+            regionSelect.setAttribute('aria-label', 'Region');
+        }
 
-        const about = document.createElement('section');
-        about.className = 'control-section v104-about';
-        about.innerHTML = '<div class="section-title">关于本项目</div><p>LED Matrix Simulator · v1.0.4-beta</p><p>开源 LED 点阵屏模拟器。</p><button class="btn btn-outline" id="v104-reset" type="button">重置全部设置</button>';
-        if (controls) controls.appendChild(about);
-        groupedSections.about = [about];
-
-        const addControls = (section, markup) => {
+        const addControl = (section, markup) => {
             if (!section) return null;
             let row = section.querySelector('.v104-extra');
             if (!row) { row = document.createElement('div'); row.className = 'v104-extra'; section.appendChild(row); }
             row.insertAdjacentHTML('beforeend', markup);
-            return row;
+            return row.lastElementChild;
         };
-        const displaySection = sectionFor('#sectionDisplay') || sectionFor('#sectionColor') || basicSection;
-        const glyphSection = sectionFor('#sectionFont') || sectionFor('#sectionStyle') || basicSection;
-        const exportSection = sectionFor('#sectionExport') || basicSection;
-        addControls(displaySection, '<div class="control-group"><label for="v104-brightness">亮度 <output id="v104-brightness-value">100%</output></label><input id="v104-brightness" type="range" min="0" max="150" value="100"></div><div class="control-group"><label for="v104-grid">网格背景</label><input id="v104-grid" type="checkbox" checked></div><div class="control-group"><label for="v104-border">灯珠边框</label><input id="v104-border" type="checkbox" checked></div>');
-        addControls(glyphSection, '<div class="control-group"><label for="v104-margin">安全边距 <output id="v104-margin-value">0%</output></label><input id="v104-margin" type="range" min="0" max="40" value="0"></div>');
-        addControls(exportSection, '<div class="control-group"><label for="v104-format">默认导出格式</label><select id="v104-format"><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></div><div class="control-group"><label for="v104-fps">录制帧率</label><select id="v104-fps"><option value="15">15 fps</option><option value="24">24 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select></div>');
+        const displaySection = sectionFor('#sectionDisplay') || sectionFor('#sectionStyle');
+        const glyphSection = sectionFor('#sectionFont');
+        const exportSection = sectionFor('#sectionExport');
+        const brightnessGroup = addControl(displaySection, '<div class="control-group"><label for="v104-brightness">Brightness <output id="v104-brightness-value">100%</output></label><input id="v104-brightness" type="range" min="25" max="150" step="5" value="100"></div>');
+        const gridGroup = addControl(displaySection, '<div class="control-group"><label for="v104-grid">Grid background</label><input id="v104-grid" type="checkbox" checked></div>');
+        const borderGroup = addControl(displaySection, '<div class="control-group"><label for="v104-border">LED bead borders</label><input id="v104-border" type="checkbox" checked></div>');
+        const marginGroup = addControl(glyphSection, '<div class="control-group"><label for="v104-margin">Safe margin <output id="v104-margin-value">0%</output></label><input id="v104-margin" type="range" min="0" max="20" step="1" value="0"></div>');
+        const formatGroup = addControl(exportSection, '<div class="control-group"><label for="v104-format">Default image format</label><select id="v104-format"><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></div>');
+        const fpsGroup = addControl(exportSection, '<div class="control-group"><label for="v104-fps">Recording frame rate</label><select id="v104-fps"><option value="15">15 fps</option><option value="24">24 fps</option><option value="30">30 fps</option><option value="60">60 fps</option></select></div>');
+        void brightnessGroup; void gridGroup; void borderGroup; void marginGroup; void formatGroup; void fpsGroup;
 
         let preferences = { ...defaults, ...loadPreferences() };
         const input = id => modal.querySelector(`#${id}`);
@@ -159,19 +144,21 @@
             if (button) button.textContent = language === 'en' ? '⚙ Settings' : language === 'zh-TW' ? '⚙ 設定' : '⚙ 设置';
         };
         const persistRegion = () => {
+            if (!regionSelect) return;
             try { localStorage.setItem(REGION_KEY, regionSelect.value); } catch (_) { /* storage may be disabled */ }
             applyLanguage(regionSelect.value);
         };
         try {
             const savedRegion = localStorage.getItem(REGION_KEY);
-            regionSelect.value = savedRegion && regionLanguage[savedRegion] ? savedRegion : 'uk';
-        } catch (_) { regionSelect.value = 'uk'; }
+            if (savedRegion && regionSelect && regionLanguage[savedRegion]) regionSelect.value = savedRegion;
+            else if (regionSelect) regionSelect.value = 'uk';
+        } catch (_) { if (regionSelect) regionSelect.value = 'uk'; }
         persistRegion();
         applyPreferencesToForm();
 
-        // Wrap renderer entry points without modifying AppState or main.js handlers.
-        if (typeof Renderer !== 'undefined' && Renderer.draw && !Renderer.__settingsV104DrawWrapped) {
-            const originalDraw = Renderer.draw;
+        // Settings state is isolated from main.js; only wrap the rendering/export entry points.
+        const originalDraw = typeof Renderer !== 'undefined' ? Renderer.draw : null;
+        if (originalDraw && !Renderer.__v104DrawWrapped) {
             Renderer.draw = function(...args) {
                 const ctx = Renderer.ctx;
                 const originalFillRect = ctx.fillRect;
@@ -191,24 +178,25 @@
                 try { return originalDraw.apply(Renderer, args); }
                 finally { ctx.fillRect = originalFillRect; }
             };
-            Renderer.__settingsV104DrawWrapped = true;
+            Renderer.__v104DrawWrapped = true;
         }
-        if (typeof Renderer !== 'undefined' && Renderer.buildBitmap && !Renderer.__settingsV104MarginWrapped) {
-            const originalBuild = Renderer.buildBitmap;
+        const originalBuild = typeof Renderer !== 'undefined' ? Renderer.buildBitmap : null;
+        if (originalBuild && !Renderer.__v104MarginWrapped) {
             Renderer.buildBitmap = function(...args) {
                 const scale = AppState.fontSizeScale;
                 AppState.fontSizeScale = scale * (1 - Number(preferences.safeMargin) / 100);
                 try { return originalBuild.apply(Renderer, args); }
                 finally { AppState.fontSizeScale = scale; }
             };
-            Renderer.__settingsV104MarginWrapped = true;
+            Renderer.__v104MarginWrapped = true;
         }
-        if (typeof Renderer !== 'undefined' && Renderer.canvas && Renderer.canvas.captureStream && !Renderer.canvas.__settingsV104CaptureWrapped) {
+        if (typeof Renderer !== 'undefined' && Renderer.canvas && !Renderer.canvas.__v104CaptureWrapped) {
             const captureStream = Renderer.canvas.captureStream.bind(Renderer.canvas);
             Renderer.canvas.captureStream = () => captureStream(Number(preferences.frameRate) || 30);
-            Renderer.canvas.__settingsV104CaptureWrapped = true;
+            Renderer.canvas.__v104CaptureWrapped = true;
         }
-        if (typeof Exporter !== 'undefined' && Exporter.saveImage && !Exporter.__settingsV104ImageWrapped) {
+        if (typeof Exporter !== 'undefined' && !Exporter.__v104ImageWrapped) {
+            const saveImage = Exporter.saveImage;
             Exporter.saveImage = () => {
                 const format = preferences.exportFormat;
                 const mime = format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png';
@@ -218,7 +206,8 @@
                 link.click();
                 if (typeof UI !== 'undefined') UI.showToast(`Image saved as ${format.toUpperCase()}`);
             };
-            Exporter.__settingsV104ImageWrapped = true;
+            Exporter.__v104ImageWrapped = true;
+            void saveImage;
         }
 
         const refresh = () => { if (typeof Renderer !== 'undefined') Renderer.refresh(); };
@@ -237,86 +226,60 @@
             else if (typeof Renderer !== 'undefined') Renderer.draw();
         };
         ['v104-brightness', 'v104-grid', 'v104-border', 'v104-margin', 'v104-format', 'v104-fps'].forEach(id => {
-            input(id).addEventListener(id === 'v104-grid' || id === 'v104-border' || id === 'v104-format' || id === 'v104-fps' ? 'change' : 'input', onPreferenceChange);
+            input(id).addEventListener(id.includes('grid') || id.includes('border') ? 'change' : id.includes('format') || id.includes('fps') ? 'change' : 'input', onPreferenceChange);
         });
 
-        const activateGroup = id => groups.forEach(group => {
-            const active = group.id === id;
-            const tab = tabs.querySelector(`[data-group="${group.id}"]`);
-            tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1;
-            groupedSections[group.id].forEach(section => { section.hidden = !active; });
-        });
-        const onTabClick = event => {
+        const activateGroup = id => {
+            groups.forEach(group => {
+                const active = group.id === id;
+                const tab = tabs.querySelector(`[data-group="${group.id}"]`);
+                tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1;
+                groupSections[group.id].forEach(section => { section.hidden = !active; });
+            });
+        };
+        tabs.addEventListener('click', event => {
             const tab = event.target.closest('[data-group]');
             if (tab) activateGroup(tab.dataset.group);
-        };
-        const onTabKeydown = event => {
+        });
+        tabs.addEventListener('keydown', event => {
             if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
             event.preventDefault();
             const current = groups.findIndex(group => tabs.querySelector(`[data-group="${group.id}"]`) === document.activeElement);
             const next = (current + (event.key === 'ArrowRight' ? 1 : -1) + groups.length) % groups.length;
-            const tab = tabs.querySelector(`[data-group="${groups[next].id}"]`);
-            tab.focus(); activateGroup(groups[next].id);
-        };
-        tabs.addEventListener('click', onTabClick);
-        tabs.addEventListener('keydown', onTabKeydown);
+            const tab = tabs.querySelector(`[data-group="${groups[next].id}"]`); tab.focus(); activateGroup(groups[next].id);
+        });
         activateGroup('basic');
 
         let isOpen = false;
-        const close = () => {
-            modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true');
-            document.body.classList.remove('modal-open'); isOpen = false; openButton.focus();
-        };
-        const open = () => {
-            modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false');
-            document.body.classList.add('modal-open'); isOpen = true;
-            tabs.querySelector('[data-group="basic"]').focus();
-        };
-        const onBackdrop = event => { if (event.target === modal) close(); };
-        const onKey = event => { if (event.key === 'Escape' && isOpen) close(); };
-        const onRegionChange = () => { persistRegion(); };
-        const closeButton = modal.querySelector('#btnCloseSettings');
-        const cancelButton = modal.querySelector('#btnCancelSettings');
+        const open = () => { modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); document.body.classList.add('modal-open'); isOpen = true; tabs.querySelector('[data-group="basic"]').focus(); };
+        const close = () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); document.body.classList.remove('modal-open'); isOpen = false; openButton.focus(); };
         openButton.addEventListener('click', open);
         closeButton.addEventListener('click', close);
-        cancelButton.addEventListener('click', close);
-        modal.querySelector('#btnApplySettings').addEventListener('click', close);
-        modal.addEventListener('click', onBackdrop);
+        modal.querySelector('#btnCancelSettings').addEventListener('click', close);
+        modal.addEventListener('click', event => { if (event.target === modal) close(); });
+        const onKey = event => { if (event.key === 'Escape' && isOpen) close(); };
         document.addEventListener('keydown', onKey);
-        regionSelect.addEventListener('change', onRegionChange);
+        if (regionSelect) regionSelect.addEventListener('change', persistRegion);
 
         const reset = () => {
-            if (!window.confirm('重置全部设置为默认值？ / Reset all settings?')) return;
+            const confirmed = window.confirm('Reset all settings to their defaults?');
+            if (!confirmed || !window.confirm('This will reset region and display preferences. Continue?')) return;
             preferences = { ...defaults }; savePreferences(preferences); applyPreferencesToForm();
-            regionSelect.value = 'uk'; persistRegion();
+            if (regionSelect) { regionSelect.value = 'uk'; persistRegion(); }
             const sizes = document.querySelectorAll('.control-section:first-child .btn[data-cols]');
             const defaultSize = Array.from(sizes).find(button => button.dataset.cols === '320' && button.dataset.rows === '40');
             if (defaultSize) defaultSize.click();
-            const mode = document.getElementById('displayMode');
-            if (mode) { mode.value = 'scroll'; mode.dispatchEvent(new Event('change', { bubbles: true })); }
-            const speed = document.getElementById('scrollSpeed');
-            if (speed) { speed.value = '40'; speed.dispatchEvent(new Event('input', { bubbles: true })); }
-            const scale = document.getElementById('fontSizeScale');
-            if (scale) { scale.value = '100'; scale.dispatchEvent(new Event('input', { bubbles: true })); }
-            const threshold = document.getElementById('threshold');
-            if (threshold) { threshold.value = '0.5'; threshold.dispatchEvent(new Event('input', { bubbles: true })); }
+            const mode = document.getElementById('displayMode'); if (mode) { mode.value = 'scroll'; mode.dispatchEvent(new Event('change', { bubbles: true })); }
+            const speed = document.getElementById('scrollSpeed'); if (speed) { speed.value = '40'; speed.dispatchEvent(new Event('input', { bubbles: true })); }
+            const scale = document.getElementById('fontSizeScale'); if (scale) { scale.value = '100'; scale.dispatchEvent(new Event('input', { bubbles: true })); }
+            const threshold = document.getElementById('threshold'); if (threshold) { threshold.value = '0.5'; threshold.dispatchEvent(new Event('input', { bubbles: true })); }
             refresh();
         };
-        const resetButton = about.querySelector('#v104-reset');
-        resetButton.addEventListener('click', reset);
-
-        window[CONTROLLER_KEY] = { destroy() {
-            openButton.removeEventListener('click', open);
-            closeButton.removeEventListener('click', close);
-            cancelButton.removeEventListener('click', close);
-            modal.removeEventListener('click', onBackdrop);
-            document.removeEventListener('keydown', onKey);
-            regionSelect.removeEventListener('change', onRegionChange);
-            tabs.removeEventListener('click', onTabClick);
-            tabs.removeEventListener('keydown', onTabKeydown);
-        } };
+        aboutSection.querySelector('#v104-reset').addEventListener('click', reset);
+        window[CONTROLLER_KEY] = { destroy() { openButton.removeEventListener('click', open); closeButton.removeEventListener('click', close); document.removeEventListener('keydown', onKey); } };
+        // If another old initializer set a first-visit fallback, make UK the persisted initial region.
+        try { if (!localStorage.getItem(REGION_KEY)) localStorage.setItem(REGION_KEY, 'uk'); } catch (_) { /* ignore */ }
     };
-
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize, { once: true });
-    else initialize();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+    else init();
 })();
