@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LED点阵 · 开源模块化版</title>
+    <title>LED Matrix Simulator</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/matrix-enhancements.css">
     <script defer src="assets/js/main.js"></script>
@@ -12,22 +12,49 @@
 </head>
 <body>
     <div class="app-container">
-        <header class="header"><div class="header-actions"><div><h1>LED 点阵 · 多比例</h1><p class="subtitle">长文本自适应 · 物理级边界居中 · 完美循环</p></div><button class="btn btn-outline" id="btnSettings" type="button" aria-haspopup="dialog" aria-controls="settingModal">⚙ 设置</button></div></header>
+        <header class="header">
+            <div class="header-actions">
+                <div>
+                    <h1>LED Matrix · Multi-size</h1>
+                    <p class="subtitle">Adaptive long text · centered glyphs · seamless looping</p>
+                </div>
+                <button class="btn btn-outline" id="btnSettings" type="button" aria-haspopup="dialog" aria-controls="settingModal">⚙ Settings</button>
+            </div>
+        </header>
         <div class="led-display-wrapper">
             <div class="canvas-container"><canvas id="ledCanvas"></canvas></div>
-            <div class="info-bar"><span><span class="size-badge" id="sizeBadge">1280 × 160</span></span><span><span id="totalLabel">总计:</span> <strong id="totalCount">204,800</strong> <span id="pixelsLabel">像素</span></span><span id="scrollStatus">◀ 自动滚动中</span></div>
+            <div class="info-bar">
+                <span><span class="size-badge" id="sizeBadge">1280 × 160</span></span>
+                <span><span id="totalLabel">Total:</span> <strong id="totalCount">204,800</strong> <span id="pixelsLabel">pixels</span></span>
+                <span id="scrollStatus">◀ Scrolling</span>
+            </div>
         </div>
-        <main class="control-panel">
-            <section class="control-section"><div class="section-title" id="sectionPanel">📏 屏幕比例</div><div class="control-row"><button class="btn btn-outline active" data-cols="320" data-rows="40" data-scale="4" type="button">1280 × 160 标准屏</button><button class="btn btn-outline" data-cols="384" data-rows="16" data-scale="4" type="button">384 × 16 超宽屏 (HZK16)</button></div></section>
-            <section class="control-section"><div class="section-title" id="sectionFont">🔤 字体与文字</div><div class="control-row" style="align-items:center;margin-bottom:6px"><div class="control-group"><label for="fontUpload">导入自定义字体 (.ttf / .otf / .woff)</label><input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2"></div><span id="fontStatus" style="font-size:.7rem;color:#33ff55;display:none">已加载</span></div><textarea id="textInput" rows="2" placeholder="输入文字...">你好 世界</textarea><div class="preset-list"><button class="btn btn-outline preset-text" data-text="你好 世界" type="button">你好 世界</button><button class="btn btn-outline preset-text" data-text="HELLO" type="button">HELLO</button><button class="btn btn-outline preset-text" data-text="下一站：科技园" type="button">下一站：科技园</button><button class="btn btn-outline preset-text" data-text="点赞👍" type="button">点赞👍</button></div></section>
-            <section class="control-section"><div class="section-title" id="sectionDisplay">📺 显示设置</div><div class="control-row"><div class="control-group"><label for="displayMode">模式</label><select id="displayMode"><option value="static">静态居中</option><option value="scroll" selected>公交滚动</option></select></div><div class="control-group" id="scrollOpts"><label for="scrollSpeed">滚动速度 <strong id="speedVal">40</strong></label><input type="range" id="scrollSpeed" min="5" max="100" value="40" step="1"></div></div></section>
-            <section class="control-section"><div class="section-title" id="sectionStyle">🔤 像素样式</div><div class="control-row"><div class="control-group"><label for="fontSizeScale">缩放 <strong id="sizeScaleVal">100</strong>%</label><input type="range" id="fontSizeScale" min="30" max="200" value="100" step="5"></div><div class="control-group"><label for="threshold">阈值 <strong id="thresholdVal">0.50</strong></label><input type="range" id="threshold" min="0.1" max="0.9" value="0.50" step="0.05"></div></div></section>
-            <section class="control-section"><div class="section-title" id="sectionColor">🎨 LED 颜色</div><div class="control-row"><div class="control-group color-input-group"><label for="ledColor">自定义</label><input type="color" id="ledColor" value="#ff3333"></div><div class="control-group"><label id="presetsLabel">预设</label><div class="color-presets" id="colorPresets"><span class="color-preset active" data-color="#ff3333" style="background:#ff3333"></span><span class="color-preset" data-color="#ff6600" style="background:#ff6600"></span><span class="color-preset" data-color="#ffdd00" style="background:#ffdd00"></span><span class="color-preset" data-color="#33ff55" style="background:#33ff55"></span><span class="color-preset" data-color="#3399ff" style="background:#3399ff"></span><span class="color-preset" data-color="#ffffff" style="background:#fff"></span></div></div></div></section>
-            <section class="control-section"><div class="section-title" id="sectionExport">🎬 控制与导出</div><div class="control-row"><button class="btn btn-replay" id="btnReplay" type="button">🔄 重新播放</button><button class="btn btn-primary" id="btnSaveImg" type="button">📸 保存图片</button><button class="btn btn-rec" id="btnRecord" type="button">🔴 录制视频</button></div></section>
+
+        <!-- Persistent controls are populated by settings.js; they stay below the LED display. -->
+        <section class="control-panel v104-live-panel" id="permanentControls" aria-label="Simulator controls">
+            <div class="v104-live-heading" id="liveControlsHeading">Simulator controls</div>
+            <div class="v104-live-sections" id="permanentControlSections"></div>
+        </section>
+
+        <!-- Source sections are split by settings.js into Basic settings and the persistent panel. -->
+        <main class="control-panel" id="legacyControlPanel">
+            <section class="control-section"><div class="section-title" id="sectionPanel">📏 Panel size</div><div class="control-row"><button class="btn btn-outline active" data-cols="320" data-rows="40" data-scale="4" type="button">1280 × 160 (standard)</button><button class="btn btn-outline" data-cols="384" data-rows="16" data-scale="4" type="button">1536 × 64 · HZK16</button></div></section>
+            <section class="control-section"><div class="section-title" id="sectionFont">🔤 Glyph rendering & text</div><div class="control-row" style="align-items:center;margin-bottom:6px"><div class="control-group"><label for="fontUpload">Import font (.ttf / .otf / .woff)</label><input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2"></div><span id="fontStatus" style="font-size:.7rem;color:#33ff55;display:none">Font loaded</span></div><textarea id="textInput" rows="2" placeholder="Enter text to display...">你好 世界</textarea><div class="preset-list"><button class="btn btn-outline preset-text" data-text="世界你好" type="button">世界你好</button><button class="btn btn-outline preset-text" data-text="HELLO" type="button">HELLO</button><button class="btn btn-outline preset-text" data-text="下一站：欢迎乘坐" type="button">下一站：欢迎乘坐</button><button class="btn btn-outline preset-text" data-text="🚇 Metro" type="button">🚇 Metro</button></div></section>
+            <section class="control-section"><div class="section-title" id="sectionDisplay">📺 Simulator display</div><div class="control-row"><div class="control-group"><label for="displayMode">Display mode</label><select id="displayMode"><option value="static">Static</option><option value="scroll" selected>Scrolling</option></select></div><div class="control-group" id="scrollOpts"><label for="scrollSpeed">Scroll speed <strong id="speedVal">40</strong></label><input type="range" id="scrollSpeed" min="5" max="100" value="40" step="1"></div></div></section>
+            <section class="control-section"><div class="section-title" id="sectionStyle">🔤 Glyph rendering</div><div class="control-row"><div class="control-group"><label for="fontSizeScale">Glyph size <strong id="sizeScaleVal">100</strong>%</label><input type="range" id="fontSizeScale" min="30" max="200" value="100" step="5"></div><div class="control-group"><label for="threshold">Brightness threshold <strong id="thresholdVal">0.50</strong></label><input type="range" id="threshold" min="0.1" max="0.9" value="0.50" step="0.05"></div></div></section>
+            <section class="control-section"><div class="section-title" id="sectionColor">🎨 LED color</div><div class="control-row"><div class="control-group color-input-group"><label for="ledColor">Custom color</label><input type="color" id="ledColor" value="#ff3333"></div><div class="control-group"><label id="presetsLabel">Presets</label><div class="color-presets" id="colorPresets"><span class="color-preset active" data-color="#ff3333" style="background:#ff3333"></span><span class="color-preset" data-color="#ff6600" style="background:#ff6600"></span><span class="color-preset" data-color="#ffdd00" style="background:#ffdd00"></span><span class="color-preset" data-color="#33ff55" style="background:#33ff55"></span><span class="color-preset" data-color="#3399ff" style="background:#3399ff"></span><span class="color-preset" data-color="#ffffff" style="background:#fff"></span></div></div></div></section>
+            <section class="control-section"><div class="section-title" id="sectionExport">🎬 Export & recording</div><div class="control-row"><button class="btn btn-replay" id="btnReplay" type="button">🔄 Replay</button><button class="btn btn-primary" id="btnSaveImg" type="button">📷 Save image</button><button class="btn btn-rec" id="btnRecord" type="button">🔴 Record video</button></div></section>
         </main>
-        <footer class="app-footer" id="appVersion">LED Matrix Simulator · v1.0.3-beta · 开源项目</footer>
+        <footer class="app-footer" id="appVersion">LED Matrix Simulator · v1.0.4-beta · Open Source</footer>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <div class="setting-modal" id="settingModal" role="dialog" aria-modal="true" aria-labelledby="settingTitle" aria-hidden="true"><div class="setting-box"><div class="modal-heading"><h2 id="settingTitle">地区设置</h2><button class="modal-close" id="btnCloseSettings" type="button" aria-label="关闭设置">×</button></div><label for="regionSelect">地区</label><select id="regionSelect"><option value="china-mainland">China (Mainland)</option><option value="china-hmt">China (Hong Kong, Macao, Taiwan)</option><option value="uk">UK</option><option value="usa">USA</option></select><div class="modal-actions"><button class="btn btn-outline" id="btnCancelSettings" type="button">取消</button><button class="btn btn-primary" id="btnSaveSettings" type="button">保存</button></div></div></div>
+    <div class="setting-modal" id="settingModal" role="dialog" aria-modal="true" aria-labelledby="settingTitle" aria-hidden="true">
+        <div class="setting-box">
+            <div class="modal-heading"><h2 id="settingTitle">Settings · v1.0.4-beta</h2><button class="modal-close" id="btnCloseSettings" type="button" aria-label="Close settings">×</button></div>
+            <label for="regionSelect">Region</label>
+            <select id="regionSelect"><option value="china-mainland">China (Mainland)</option><option value="china-hmt">China (Hong Kong, Macao, Taiwan)</option><option value="uk">United Kingdom</option><option value="usa">United States</option></select>
+            <div class="modal-actions"><button class="btn btn-outline" id="btnCancelSettings" type="button">Close</button><button class="btn btn-primary" id="btnSaveSettings" type="button">Done</button></div>
+        </div>
+    </div>
 </body>
 </html>
