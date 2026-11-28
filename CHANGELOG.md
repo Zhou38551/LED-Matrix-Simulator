@@ -39,7 +39,7 @@
 - 保留地区语言切换、地区设置及项目多文件结构。
   Preserved region/language switching, region settings, and the multi-file project structure.
 
-## beta 1.0.1
+## v1.0.1-beta
 
 ### 改动 | Changes
 
